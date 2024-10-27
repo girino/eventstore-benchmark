@@ -13,7 +13,9 @@ import (
 	"eventstore_benchmark/slicestore"
 
 	"github.com/fiatjaf/eventstore"
+	"github.com/fiatjaf/eventstore/badger"
 	"github.com/fiatjaf/eventstore/lmdb"
+	"github.com/fiatjaf/eventstore/sqlite3"
 	"github.com/nbd-wtf/go-nostr"
 )
 
@@ -32,7 +34,13 @@ func loadEvents(filename string) ([]*nostr.Event, error) {
 
 func benchmarkLoadEvents(events []*nostr.Event, store eventstore.Store) time.Duration {
 	start := time.Now()
-	for _, event := range events {
+	for i, event := range events {
+		if i%100 == 0 {
+			fmt.Printf(".")
+			if i%8000 == 0 && i != 0 {
+				fmt.Printf("\n")
+			}
+		}
 		store.SaveEvent(context.Background(), event)
 	}
 	return time.Since(start)
@@ -54,7 +62,7 @@ func main() {
 	}
 
 	load := false
-	if len(os.Args) >= 2 {
+	if len(os.Args) > 2 {
 		if os.Args[2] == "load" || os.Args[1] == "mem" {
 			load = true
 		} else {
@@ -76,10 +84,22 @@ func main() {
 	case "lmdb":
 		store = &lmdb.LMDBBackend{
 			Path:     "./data",
-			MaxLimit: 1 << 30,
+			MapSize:  1 << 30,
+			MaxLimit: 500,
+		}
+	case "badger":
+		store = &badger.BadgerBackend{
+			Path:     "./data",
+			MaxLimit: 500,
+		}
+	case "sqlite":
+		store = &sqlite3.SQLite3Backend{
+			DatabaseURL: "file:./data/db.sqlite3?mode=rwc",
 		}
 	case "mem":
-		store = &slicestore.SliceStore{}
+		store = &slicestore.SliceStore{
+			MaxLimit: 500,
+		}
 	default:
 		log.Fatalf("Unknown eventstore type: %s", eventstoreType)
 	}
@@ -97,17 +117,21 @@ func main() {
 		},
 		nostr.Filter{
 			Kinds: []int{1},
+			Limit: 500,
 		},
 		nostr.Filter{
 			Kinds: []int{1, 5, 7},
+			Limit: 500,
 		},
 		// existing author
 		nostr.Filter{
 			Authors: []string{"76e6cc3224c036b4c090d8e76262d2e9db82cd748213a78c79fc62561f175a26"},
+			Limit:   500,
 		},
 		// non existing author
 		nostr.Filter{
 			Authors: []string{"00e6cc3224c036b4c090d8e76262d2e9db82cd748213a78c79fc62561f175a00"},
+			Limit:   500,
 		},
 		nostr.Filter{
 			Authors: []string{
@@ -117,14 +141,17 @@ func main() {
 				"d6568480980ccdc2f7103e0d88120ef0e8a45b04aebb99b5564869f0553a78f6",
 				"f0fb31d1810a9f95df3d178fcd67ca0b09879ad11e8689e56962cd839fb8ead4",
 			},
+			Limit: 500,
 		},
 		// existing id
 		nostr.Filter{
-			IDs: []string{"a313b4fc15a63995fa1a3a99584cb32fb77c10e4e929bfbd94bb40053549f124"},
+			IDs:   []string{"a313b4fc15a63995fa1a3a99584cb32fb77c10e4e929bfbd94bb40053549f124"},
+			Limit: 500,
 		},
 		// non existing id
 		nostr.Filter{
-			IDs: []string{"0000000000063995fa1a3a99584cb32fb77c10e4e929bfbd94bb40053549f100"},
+			IDs:   []string{"0000000000063995fa1a3a99584cb32fb77c10e4e929bfbd94bb40053549f100"},
+			Limit: 500,
 		},
 		nostr.Filter{
 			IDs: []string{
@@ -134,6 +161,7 @@ func main() {
 				"7022ad4f3f43fe424b50c11b671398abf1314776dfa0f474d506ea9f42be46c9",
 				"cefdcd1452174d166b2533d23b708637e698711f1db1fddceaba5008e47b7803",
 			},
+			Limit: 500,
 		},
 	}
 
