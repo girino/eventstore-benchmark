@@ -15,6 +15,7 @@ import (
 	"github.com/fiatjaf/eventstore"
 	"github.com/fiatjaf/eventstore/badger"
 	"github.com/fiatjaf/eventstore/lmdb"
+	"github.com/fiatjaf/eventstore/postgresql"
 	"github.com/fiatjaf/eventstore/sqlite3"
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -63,11 +64,11 @@ func main() {
 
 	load := false
 	if len(os.Args) > 2 {
-		if os.Args[2] == "load" || os.Args[1] == "mem" {
+		if os.Args[2] == "load" || os.Args[1] == "mem" || os.Args[1] == "mem_sqlite" {
 			load = true
 		} else {
-			fmt.Println("Usage: ./main <eventstore_type>")
-			fmt.Println("eventstore_type: mem | lmdb")
+			fmt.Println("Usage: ./main <eventstore_type> [load]")
+			fmt.Println("eventstore_type: mem | lmdb | badger | sqlite | mem_sqlite")
 			os.Exit(0)
 		}
 	}
@@ -96,6 +97,14 @@ func main() {
 		store = &sqlite3.SQLite3Backend{
 			DatabaseURL: "file:./data/db.sqlite3?mode=rwc",
 		}
+	case "postgresql":
+		store = &postgresql.PostgresBackend{
+			DatabaseURL: "postgres://postgres:secret@localhost:5432/eventstore?sslmode=disable",
+		}
+	case "mem_sqlite":
+		store = &sqlite3.SQLite3Backend{
+			DatabaseURL: "file::memory:?mode=memory",
+		}
 	case "mem":
 		store = &slicestore.SliceStore{
 			MaxLimit: 500,
@@ -104,7 +113,10 @@ func main() {
 		log.Fatalf("Unknown eventstore type: %s", eventstoreType)
 	}
 
-	store.Init()
+	err = store.Init()
+	if err != nil {
+		log.Fatalf("Failed to initialize eventstore: %v", err)
+	}
 	if load {
 		fmt.Printf("Loading events...\n")
 		loadDuration := benchmarkLoadEvents(events, store)
