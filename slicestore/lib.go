@@ -249,9 +249,9 @@ func (b *SliceStore) Init() error {
 	if b.MaxLimit == 0 {
 		b.MaxLimit = 500
 	}
-	if b.Path == "" {
-		return fmt.Errorf("path not defined")
-	}
+	// if b.Path == "" {
+	// 	return fmt.Errorf("path not defined")
+	// }
 
 	// // Load events from disk
 	// if err := b.LoadEventsFromDisk(b.Path); err != nil {
