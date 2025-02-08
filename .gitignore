@@ -1,0 +1,7 @@
+.history/
+.history/*
+events.json
+*.exe
+data/
+data/*
+events.json.zst
